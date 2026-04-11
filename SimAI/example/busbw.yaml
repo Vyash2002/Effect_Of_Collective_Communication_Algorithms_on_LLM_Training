@@ -1,0 +1,18 @@
+test
+TP:
+  allreduce,: 300
+  allgather,: 280
+  reducescatter,: 280
+  alltoall,: 230
+DP:
+  allreduce,: 180
+  allgather,: 380
+  reducescatter,: 380
+  alltoall,: 180
+EP:
+  allreduce,: 45
+  allgather,: 45
+  reducescatter,: 45
+  alltoall,: 80
+PP:
+  busbw: 47.5
