@@ -1,0 +1,81 @@
+Hypothesis : Higher TP increases frequency and size of AllReduce → magnifies differences between algorithms.
+
+Results: Our results are verifying the hypothesis as we are increasing the tensor parallelism we are getting the TP exposed communication time increases .Tensor Parallelism increases (TP=1→4→8), each forward and backward pass requires AllReduce operations within the TP group to synchronize activations — so both the frequency (more layers communicating) and the volume of TP communication grow. This additional TP comm burden is handled very differently by Ring vs Tree: Ring pipelines data efficiently in a bandwidth-optimal way, while Tree incurs higher latency per collective due to its tree-traversal overhead. Since these TP AllReduces are now on the critical path (growing from 0% → 47% → 61% of total comm time), the per-collective penalty of Tree gets multiplied across every layer, causing the absolute gap to widen from 62K → 109K → 142K µs as TP scales. In short, higher TP doesn't just add more communication — it repeatedly amplifies the per-collective algorithmic disadvantage of Tree over Ring.
+
+
+
+
+Command to run: 
+1. For Tp=1
+python -m workload_generator.SimAI_training_workload_generator \
+  --model_name GPT --frame=Megatron \
+  --world_size=256 --tensor_model_parallel_size=1 --pipeline_model_parallel=1 \
+  --global_batch=256 --micro_batch=1 \
+  --num_layers=32 --seq_length=2048 \
+  --hidden_size=4096 --num_attention_heads=32 --epoch_num=1
+  
+2. For Tp=4
+
+python -m workload_generator.SimAI_training_workload_generator \
+  --model_name GPT --frame=Megatron \
+  --world_size=256 --tensor_model_parallel_size=4 --pipeline_model_parallel=1 \
+  --global_batch=256 --micro_batch=1 \
+  --num_layers=32 --seq_length=2048 \
+  --hidden_size=4096 --num_attention_heads=32 --epoch_num=1
+  
+3. For Tp = 8
+
+python -m workload_generator.SimAI_training_workload_generator \
+  --model_name GPT --frame=Megatron \
+  --world_size=256 --tensor_model_parallel_size=8 --pipeline_model_parallel=1 \
+  --global_batch=256 --micro_batch=1 \
+  --num_layers=32 --seq_length=2048 \
+  --hidden_size=4096 --num_attention_heads=32 --epoch_num=1
+  
+
+cp results/workload/*.txt ../example/
+
+1. For Tp= 1 Ring
+
+./bin/SimAI_analytical \
+    -w ./example/None-GPT-world_size256-tp1-pp1-ep1-gbs256-mbs1-seq2048-numeric.txt \
+    -g 256 -g_p_s 8 -r tp1_ring_ \
+    -nv 360 -nic 48.5 -n_p_s 8 2>&1 | tee results/tp1_ring.log
+    
+ 2. For Tp = 1 Tree
+ 
+ ./bin/SimAI_analytical \
+    -w ./example/None-GPT-world_size256-tp1-pp1-ep1-gbs256-mbs1-seq2048-numeric.txt \
+    -g 256 -g_p_s 8 -r tp1_tree_ \
+    -nv 200 -nic 25 -n_p_s 8 2>&1 | tee results/tp1_tree.log
+ 
+ 3. For Tp = 4 Ring 
+ 
+ ./bin/SimAI_analytical \
+    -w ./example/None-GPT-world_size256-tp4-pp1-ep1-gbs256-mbs1-seq2048-numeric.txt \
+    -g 256 -g_p_s 8 -r tp4_ring_ \
+    -nv 360 -nic 48.5 -n_p_s 8 2>&1 | tee results/tp4_ring.log
+    
+ 4. For Tp = 4 Tree
+ 
+ ./bin/SimAI_analytical \
+    -w ./example/None-GPT-world_size256-tp4-pp1-ep1-gbs256-mbs1-seq2048-numeric.txt \
+    -g 256 -g_p_s 8 -r tp4_tree_ \
+    -nv 200 -nic 25 -n_p_s 8 2>&1 | tee results/tp4_tree.log
+    
+ 4. For Tp = 8 Ring 
+ 
+ ./bin/SimAI_analytical \
+    -w ./example/None-GPT-world_size256-tp8-pp1-ep1-gbs256-mbs1-seq2048-numeric.txt \
+    -g 256 -g_p_s 8 -r tp8_ring_ \
+    -nv 360 -nic 48.5 -n_p_s 8 2>&1 | tee results/tp8_ring.log
+ 5. For Tp = 8 Tree
+ 
+ ./bin/SimAI_analytical \
+    -w ./example/None-GPT-world_size256-tp8-pp1-ep1-gbs256-mbs1-seq2048-numeric.txt \
+    -g 256 -g_p_s 8 -r tp8_tree_ \
+    -nv 200 -nic 25 -n_p_s 8 2>&1 | tee results/tp8_tree.log
+
+Inside results folder python file for visualization:
+python3 analyze_tp.py
+

@@ -1,0 +1,25 @@
+Hypothesis :The total execution time scales linearly with the number of layers, provided that all other factors remain constant, such that doubling the layers results in an approximately proportional doubling of the total time.
+
+
+Commands to generate workload: 
+
+for 16 layers : 
+python3 -m workload_generator.SimAI_training_workload_generator   --model_name GPT --frame Megatron   --world_size 8 --tensor_model_parallel_size 4 --pipeline_model_parallel 1   --global_batch 8 --micro_batch 1   --num_layers 16 --hidden_size 256 --num_attention_heads 8   --seq_length 128 --epoch_num 1
+
+
+for 32 layers : 
+python3 -m workload_generator.SimAI_training_workload_generator   --model_name GPT --frame Megatron   --world_size 8 --tensor_model_parallel_size 4 --pipeline_model_parallel 1   --global_batch 8 --micro_batch 1   --num_layers 32 --hidden_size 256 --num_attention_heads
+ 8   --seq_length 128 --epoch_num 1
+
+for 64 layers : 
+python3 -m workload_generator.SimAI_training_workload_generator   --model_name GPT --frame Megatron   --world_size 8 --tensor_model_parallel_size 4 --pipeline_model_parallel 1   --global_batch 8 --micro_batch 1   --num_layers 64 --hidden_size 256 --num_attention_heads
+ 8   --seq_length 128 --epoch_num 1
+
+for 128 layers : 
+python3 -m workload_generator.SimAI_training_workload_generator   --model_name GPT --frame Megatron   --world_size 8 --tensor_model_parallel_size 4 --pipeline_model_parallel 1   --global_batch 8 --micro_batch 1   --num_layers 128 --hidden_size 256 --num_attention_heads
+ 8   --seq_length 128 --epoch_num 1
+
+
+Commands to run : 
+Just change the config
+AS_SEND_LAT=3 AS_NVLS_ENABLE=1 ./bin/SimAI_simulator   -t 8   -w ./aicb/results/workload/hybrid_128.txt   -n ./Spectrum-X_4g_4gps_100Gbps_A100   -c ./astra-sim-alibabacloud/inputs/config/SimAI.conf   2>&1 | tee ./hybrid_128.log

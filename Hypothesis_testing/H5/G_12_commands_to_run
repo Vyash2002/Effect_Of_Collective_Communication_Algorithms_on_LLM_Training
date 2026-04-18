@@ -1,0 +1,52 @@
+Hypothesis : NVLS's hardware tree acceleration is collective-specific — it wins AllReduce by 31% but loses AllGather and ReduceScatter to Ring, meaning the net benefit of NVLS in real LLM training (which uses all three) is significantly smaller than AllReduce-only benchmarks suggest.
+
+
+Commands 
+
+cat > ./example/multiCollective.txt << 'EOF'
+HYBRID_TRANSFORMER_FWD_IN_BCKWD model_parallel_NPU_group: 8 ep: 1 pp: 1 vpp: 8 ga: 1 all_gpus: 32 checkpoints: 0 checkpoint_initiates: 0
+18
+embedding_layer   -1 556000  ALLREDUCE      16777216   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLREDUCE      67108864   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLREDUCE     268435456   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLREDUCE     536870912   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLGATHER      16777216   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLGATHER      67108864   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLGATHER     268435456   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLGATHER     536870912   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  REDUCESCATTER  16777216   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  REDUCESCATTER  67108864   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  REDUCESCATTER 268435456   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  REDUCESCATTER 536870912   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLGATHER      16777216   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLGATHER      67108864   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLGATHER     268435456   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  ALLGATHER     536870912   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  REDUCESCATTER  16777216   1  NONE 0  1  NONE 0  1
+embedding_layer   -1 556000  REDUCESCATTER 536870912   1  NONE 0  1  NONE 0  1
+EOF
+
+
+python3 ./astra-sim-alibabacloud/inputs/topo/gen_Topo_Template.py \
+    --ro -g 32 -gt H100 -bw 400Gbps -nvbw 1360Gbps
+
+AS_SEND_LAT=12 AS_NVLS_ENABLE=1 \
+  ./bin/SimAI_simulator -t 8 \
+  -w ./example/multiCollective.txt \
+  -n ./Rail_Opti_SingleToR_32g_8gps_400Gbps_H100 \
+  -c ./astra-sim-alibabacloud/inputs/config/SimAI.conf \
+  2>&1 | tee multicollective_nvls.log
+  
+  
+python3 ./astra-sim-alibabacloud/inputs/topo/gen_Topo_Template.py \
+    --ro -g 32 -gt H100 -bw 400Gbps -nvbw 1440Gbps
+
+AS_SEND_LAT=2 AS_PXN_ENABLE=1 \
+  ./bin/SimAI_simulator -t 8 \
+  -w ./example/multiCollective.txt \
+  -n ./Rail_Opti_SingleToR_32g_8gps_400Gbps_H100 \
+  -c ./astra-sim-alibabacloud/inputs/config/SimAI.conf \
+  2>&1 | tee multicollective_ring.log
+  
+  
+ 

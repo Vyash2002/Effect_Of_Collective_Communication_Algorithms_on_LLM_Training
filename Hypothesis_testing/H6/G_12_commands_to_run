@@ -1,0 +1,48 @@
+Hypothesis : Ring vs NVLS AllReduce: Proof & Reproduction Guide
+
+NVLS (NVLink Switch Tree AllReduce) has a hardware-assisted tree topology optimized for intra-node communication. It has lower latency but lower peak bandwidth than Ring for large messages.
+Ring AllReduce scales bandwidth linearly with message size (bus BW ≈ constant), eventually dominating NVLS for large messages because it saturates all NVLink links.
+
+
+Command to run 
+
+cat > ./example/microAllReduce.txt << 'EOF'
+HYBRID_TRANSFORMER_FWD_IN_BCKWD model_parallel_NPU_group: 8 ep: 1 pp: 1 vpp: 8 ga: 1 all_gpus: 32 checkpoints: 0 checkpoint_initiates: 0
+6
+embedding_layer     -1 556000  ALLREDUCE   16777216      1       NONE 0        1      NONE   0      1 
+embedding_layer     -1 556000  ALLREDUCE   33554432      1       NONE 0        1      NONE   0      1 
+embedding_layer     -1 556000  ALLREDUCE   67108864      1       NONE 0        1      NONE   0      1 
+embedding_layer     -1 556000  ALLREDUCE   134217728      1       NONE 0        1      NONE   0      1 
+embedding_layer     -1 556000  ALLREDUCE   268435456      1       NONE 0        1      NONE   0      1 
+embedding_layer     -1 556000  ALLREDUCE   536870912      1       NONE 0        1      NONE   0      1
+EOF
+
+# NVLS topology (nvbw=1360Gbps models NVLS tree effective BW)
+python3 ./astra-sim-alibabacloud/inputs/topo/gen_Topo_Template.py \
+    --ro -g 32 -gt H100 -bw 400Gbps -nvbw 1360Gbps
+
+# Ring topology (nvbw=1440Gbps, full bidirectional NVLink bandwidth)
+python3 ./astra-sim-alibabacloud/inputs/topo/gen_Topo_Template.py \
+    --ro -g 32 -gt H100 -bw 400Gbps -nvbw 1440Gbps
+    
+# AS_NVLS_ENABLE=1 activates the hardware tree (NVLS) AllReduce path
+# AS_SEND_LAT=12 models the higher latency of NVLS tree arbitration
+AS_SEND_LAT=12 AS_NVLS_ENABLE=1 \
+  ./bin/SimAI_simulator -t 8 \
+  -w ./example/microAllReduce.txt \
+  -n ./Rail_Opti_SingleToR_32g_8gps_400Gbps_H100 \
+  -c ./astra-sim-alibabacloud/inputs/config/SimAI.conf \
+  2>&1 | tee nvls_result.log
+  
+# Re-generate topology with Ring NVLink BW
+python3 ./astra-sim-alibabacloud/inputs/topo/gen_Topo_Template.py \
+    --ro -g 32 -gt H100 -bw 400Gbps -nvbw 1440Gbps
+
+# AS_PXN_ENABLE=1 enables PXN (peer-to-peer NVLink), used by Ring
+# AS_SEND_LAT=2 models the lower latency of the ring path
+AS_SEND_LAT=2 AS_PXN_ENABLE=1 \
+  ./bin/SimAI_simulator -t 8 \
+  -w ./example/microAllReduce.txt \
+  -n ./Rail_Opti_SingleToR_32g_8gps_400Gbps_H100 \
+  -c ./astra-sim-alibabacloud/inputs/config/SimAI.conf \
+  2>&1 | tee ring_result.log
