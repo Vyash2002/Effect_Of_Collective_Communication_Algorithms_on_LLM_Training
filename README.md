@@ -7,7 +7,7 @@
 
 ## 📌 Overview
 
-Large Language Models (LLMs) contain billions to trillions of parameters and cannot be trained on a single GPU. This project investigates how **collective communication algorithms** — specifically **Ring-AllReduce** and **Tree-AllReduce** — affect the performance of distributed LLM training.
+Large Language Models (LLMs) contain billions to trillions of parameters and cannot be trained on a single GPU. This project investigates how **collective communication algorithms** — specifically **Ring-AllReduce** and **NVLS-Tree-AllReduce** — affect the performance of distributed LLM training.
 
 Rather than running expensive real-hardware experiments, we use **[SimAI](https://github.com/aliyun/SimAI)** — a high-fidelity LLM training simulator with ~98.1% accuracy compared to real systems — to evaluate performance across varying configurations.
 
@@ -15,7 +15,7 @@ Rather than running expensive real-hardware experiments, we use **[SimAI](https:
 
 ## 🎯 Objectives
 
-1. **Algorithm Comparison** — Benchmark Ring-AllReduce vs. Tree-AllReduce across varying message sizes, GPU counts, and network bandwidths.
+1. **Algorithm Comparison** — Benchmark Ring-AllReduce vs. NVLS-Tree-AllReduce across varying message sizes, GPU counts, and network bandwidths.
 2. **Optimal Operating Conditions** — Identify parameter combinations where each algorithm performs best.
 3. **Parallelism Strategy Analysis** — Study how Data Parallelism (DP), Tensor Parallelism (TP), and Pipeline Parallelism (PP) influence algorithm selection.
 
@@ -38,7 +38,7 @@ Training GPT-3 required ~34 days on 1,024 GPUs. Even minor communication ineffic
 ### Algorithms Under Study
 
 - **Ring-AllReduce** — GPUs arranged in a logical ring; data circulates step-by-step. Scales well with increasing GPU count.
-- **Tree-AllReduce** — GPUs arranged in a tree; gradients reduce from leaves to root, then broadcast back. Lower latency for small messages.
+- **NVLS-Tree-AllReduce** — GPUs arranged in a tree; gradients reduce from leaves to root, then broadcast back. Lower latency for small messages.
 
 ### Parallelism Strategies
 
@@ -89,7 +89,7 @@ Simulation Speedup
 | Number of GPUs | 2, 4, 8, 16, 32, ... |
 | Message Size | Small → Large (gradient tensor sizes) |
 | Network Bandwidth | Varied (NVLink / InfiniBand configs) |
-| Collective Algorithm | Ring-AllReduce, Tree-AllReduce |
+| Collective Algorithm | Ring-AllReduce, NVLS-Tree-AllReduce |
 | Parallelism Strategy | DP, TP, PP |
 
 ---
@@ -128,12 +128,12 @@ Follow the official SimAI setup instructions:
 # Edit the input description file with desired:
 #   - GPU count
 #   - Network bandwidth
-#   - Collective algorithm (ring / tree)
+#   - Collective algorithm (ring / NVLS-tree)
 #   - Parallelism strategy
 
 # Run the simulator
 python run_simulation.py --algorithm ring --gpus 8 --message-size 1GB
-python run_simulation.py --algorithm tree --gpus 8 --message-size 1GB
+python run_simulation.py --algorithm NVLS-tree --gpus 8 --message-size 1GB
 ```
 
 > ⚠️ Refer to the project-specific scripts in the repo for exact invocation commands.
@@ -146,7 +146,7 @@ python run_simulation.py --algorithm tree --gpus 8 --message-size 1GB
 .
 ├── configs/               # Simulation configuration files
 │   ├── ring_allreduce/    # Ring-AllReduce experiment configs
-│   └── tree_allreduce/    # Tree-AllReduce experiment configs
+│   └── tree_allreduce/    # NVLS-Tree-AllReduce experiment configs
 ├── workloads/             # Generated workload traces
 ├── results/               # Simulation output and logs
 ├── analysis/              # Scripts for parsing and plotting results
